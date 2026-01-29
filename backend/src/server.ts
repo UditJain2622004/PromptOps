@@ -1,5 +1,6 @@
 // src/server.ts
-import { buildApp } from './app'
+import 'dotenv/config'
+import { buildApp } from './app.js'
 
 const PORT = Number(process.env.PORT) || 3000
 

@@ -12,3 +12,250 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum workspaceUserRole{
+  OWNER
+  ADMIN
+  USER
+}
+
+enum EvaluationDefinitionScope{
+  WORKSPACE
+  AGENT
+}
+
+enum DatasetScope{
+  WORKSPACE
+  AGENT
+}
+
+enum EvaluationDefinitionType{
+  TYPE1
+  TYPE2
+}
+
+enum DataItemType{
+  TYPE1
+  TYPE2
+}
+
+enum EvaluationRunStatus{
+  CREATED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum EvaluationRunMode{
+  CHAT
+  AGENTIC
+}
+
+
+model User{
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  password String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces WorkspaceUser[]
+
+  workspacesCreated     Workspace[] @relation("CreatedBy")
+  workspacesUpdated     Workspace[] @relation("LastUpdatedBy")
+
+  workspaceUsersCreated     WorkspaceUser[] @relation("CreatedBy")
+  workspaceUsersUpdated     WorkspaceUser[] @relation("LastUpdatedBy")
+}
+
+model Workspace{
+  id Int @id @default(autoincrement())
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+  createdBy User @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  lastUpdatedById Int
+  lastUpdatedBy User @relation("LastUpdatedBy", fields: [lastUpdatedById], references: [id], onDelete: Restrict)
+
+
+  users WorkspaceUser[]
+  agents Agent[]
+  evaluationDefinitions EvaluationDefinition[]
+  evaluationRuns EvaluationRun[]
+  datasets Dataset[]
+}
+
+model WorkspaceUser{
+  userId Int
+  workspaceId Int
+
+  user User @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  role workspaceUserRole @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+  createdBy User @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  lastUpdatedById Int
+  lastUpdatedBy User @relation("LastUpdatedBy", fields: [lastUpdatedById], references: [id], onDelete: Restrict)
+
+  @@id([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model Agent {
+  id Int @id @default(autoincrement())
+  name String
+  description String?
+
+  activeAgentVersionId Int?
+  // activeAgentVersion AgentVersion? @relation("ActiveAgentVersion",fields: [activeAgentVersionId],references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+  lastUpdatedById Int
+
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  agentVersions AgentVersion[]
+  evaluationDefinitions EvaluationDefinition[]
+  datasets Dataset[]
+
+  @@index([workspaceId])
+  @@index([activeAgentVersionId])
+}
+
+
+model AgentVersion {
+  id Int @id @default(autoincrement())
+  systemInstruction String
+  config Json
+
+  createdAt DateTime @default(now())
+  createdById Int
+
+  agentId Int
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  // activeForAgent Agent? @relation("ActiveAgentVersion")
+
+  evaluationResults EvaluationResult[]
+
+  @@index([agentId])
+}
+
+
+model EvaluationDefinition{
+  id Int @id @default(autoincrement())
+  name String?
+  scope EvaluationDefinitionScope @default(AGENT)
+  definition Json
+  type EvaluationDefinitionType @default(TYPE1)
+  agentId Int?
+  agent Agent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+  lastUpdatedById Int
+
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  evaluationResults EvaluationResult[]
+
+  @@index([workspaceId])
+}
+
+model EvaluationRun{
+  id Int @id @default(autoincrement())
+  name String?
+  configSnapshot Json
+  status EvaluationRunStatus @default(CREATED)
+  mode EvaluationRunMode @default(CHAT)
+
+  createdAt DateTime @default(now())
+  createdById Int
+
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  evaluationResults EvaluationResult[]
+
+  @@index([workspaceId])
+}
+
+model EvaluationResult{
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  result Json
+
+  evaluationDefinitionId Int
+  evaluationRunId Int
+  agentVersionId Int
+
+  evaluationDefinition EvaluationDefinition @relation(fields: [evaluationDefinitionId], references: [id], onDelete: Restrict)
+  evaluationRun EvaluationRun @relation(fields: [evaluationRunId], references: [id], onDelete: Cascade)
+  agentVersion AgentVersion @relation(fields: [agentVersionId], references: [id],onDelete: Restrict)
+
+  @@index([evaluationRunId])
+  @@index([agentVersionId])
+  @@index([evaluationDefinitionId])
+
+}
+
+model Dataset{
+  id Int @id @default(autoincrement())
+  name String?
+  scope DatasetScope @default(AGENT)
+  agentId Int?
+  agent Agent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+  lastUpdatedById Int
+
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  dataItems DataItem[]
+
+  @@index([workspaceId])
+}
+
+
+model DataItem{
+  id Int @id @default(autoincrement())
+  type DataItemType @default(TYPE1)
+  data Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int
+
+  datasetId Int
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+
+}
