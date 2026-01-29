@@ -2,7 +2,11 @@ import Fastify from 'fastify'
 import dbPlugin from './plugins/db.js'
 import jwtPlugin from './plugins/jwt.js'
 import authPlugin from './plugins/auth.js'
+import workspacePlugin from './plugins/workspace.js'
 import { authRoutes } from './routes/auth.routes.js'
+import { workspacesRoutes } from './routes/workspaces.routes.js'
+import { agentsRoutes } from './routes/agents.routes.js'
+import { evaluationRoutes } from './routes/evaluation.routes.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -19,8 +23,24 @@ export async function buildApp() {
   await app.register(jwtPlugin)
   await app.register(authPlugin)
 
-  // Routes
+  // Public routes (no auth)
   await app.register(authRoutes, { prefix: '/auth' })
+
+  // Workspace routes (auth required, but no workspace resolution)
+  await app.register(workspacesRoutes, { prefix: '/workspaces' })
+
+  // Workspace-scoped routes (auth + workspace resolution required)
+  // All future domain routes (agents, evaluations, datasets) go here
+  await app.register(async function workspaceScopedRoutes(scopedApp) {
+    // Register workspace resolution plugin for this scope only
+    await scopedApp.register(workspacePlugin)
+
+    // Domain routes
+    await scopedApp.register(agentsRoutes, { prefix: '/agents' })
+    await scopedApp.register(evaluationRoutes)
+    // Future routes:
+    // await scopedApp.register(datasetsRoutes, { prefix: '/datasets' })
+  }, { prefix: '/workspaces/:workspaceId' })
 
   return app
 }
