@@ -1,0 +1,540 @@
+{
+	"info": {
+		"_postman_id": "promptops-api-collection",
+		"name": "PromptOps API",
+		"description": "Complete API collection for PromptOps - an AI agent evaluation and management platform.\n\n## Authentication\nMost endpoints require a Bearer token. Use the `/auth/login` or `/auth/register` endpoints to obtain a token.\n\n## Workspace Context\nAgent and Evaluation routes require a `workspaceId` path parameter to scope operations to a specific workspace.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "workspaceId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "agentId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "versionId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "definitionId",
+			"value": "1",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "🏥 Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Simple health check endpoint. No authentication required.\n\n**Response:** `{ \"status\": \"ok\" }`"
+					}
+				}
+			],
+			"description": "Health check endpoints for monitoring server status."
+		},
+		{
+			"name": "🔐 Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    console.log('Token saved to collection variables');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"securePassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Register a new user account.\n\n**Validation:**\n- `name`: Required, min 1 character\n- `email`: Required, valid email format\n- `password`: Required, min 8 characters\n\n**Success (201):** Returns user object and JWT token\n**Error (409):** Email already exists"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    console.log('Token saved to collection variables');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@example.com\",\n    \"password\": \"securePassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Authenticate with email and password.\n\n**Success (200):** Returns user object and JWT token\n**Error (401):** Invalid email or password"
+					}
+				}
+			],
+			"description": "Authentication endpoints for user registration and login. These endpoints do not require authentication."
+		},
+		{
+			"name": "🏢 Workspaces",
+			"item": [
+				{
+					"name": "Create Workspace",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"My Workspace\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces"]
+						},
+						"description": "Create a new workspace. The creating user becomes the OWNER.\n\n**Validation:**\n- `name`: Required, 1-255 characters\n\n**Success (201):** Returns workspace object"
+					}
+				},
+				{
+					"name": "List My Workspaces",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces"]
+						},
+						"description": "List all workspaces the authenticated user belongs to.\n\n**Success (200):** Returns array of workspaces with role info"
+					}
+				},
+				{
+					"name": "Delete Workspace",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}"]
+						},
+						"description": "Delete a workspace and all associated data.\n\n**Permission:** OWNER only\n\n**Success (204):** No content\n**Error (403):** Access denied\n**Error (404):** Workspace not found"
+					}
+				},
+				{
+					"name": "List Workspace Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "users"]
+						},
+						"description": "List all members of a workspace.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns array of members with roles"
+					}
+				},
+				{
+					"name": "Invite User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"role\": \"USER\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/invite",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "invite"]
+						},
+						"description": "Invite a user to the workspace by email.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `email`: Required, valid email\n- `role`: Optional, one of `OWNER`, `ADMIN`, `USER` (default: USER)\n\n**Success (201):** Returns member object\n**Error (400):** User not found or already member"
+					}
+				},
+				{
+					"name": "Change User Role",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"ADMIN\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/users/2",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "users", "2"]
+						},
+						"description": "Change a user's role in the workspace.\n\n**Permission:** OWNER only\n\n**Body:**\n- `role`: Required, one of `OWNER`, `ADMIN`, `USER`\n\n**Success (200):** Returns updated member object\n**Error (400):** Cannot change own role or invalid operation"
+					}
+				}
+			],
+			"description": "Workspace management endpoints. All require authentication."
+		},
+		{
+			"name": "🤖 Agents",
+			"item": [
+				{
+					"name": "Create Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Customer Support Agent\",\n    \"description\": \"An AI agent for handling customer inquiries\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents"]
+						},
+						"description": "Create a new agent in the workspace.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `name`: Required, 1-255 characters\n- `description`: Optional, max 1000 characters\n\n**Success (201):** Returns agent object"
+					}
+				},
+				{
+					"name": "List Agents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents"]
+						},
+						"description": "List all agents in the workspace.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns array of agents"
+					}
+				},
+				{
+					"name": "Get Agent",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}"]
+						},
+						"description": "Get a single agent by ID.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns agent object\n**Error (404):** Agent not found"
+					}
+				},
+				{
+					"name": "Update Agent",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Agent Name\",\n    \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}"]
+						},
+						"description": "Update an agent's details.\n\n**Permission:** OWNER or ADMIN\n\n**Body:** (all optional)\n- `name`: 1-255 characters\n- `description`: max 1000 characters\n\n**Success (200):** Returns updated agent\n**Error (404):** Agent not found"
+					}
+				},
+				{
+					"name": "Delete Agent",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}"]
+						},
+						"description": "Delete an agent and all its versions.\n\n**Permission:** OWNER only\n\n**Success (204):** No content\n**Error (404):** Agent not found"
+					}
+				},
+				{
+					"name": "Create Agent Version",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"systemInstruction\": \"You are a helpful customer support agent. Be polite and professional.\",\n    \"config\": {\n        \"model\": \"gpt-4\",\n        \"temperature\": 0.7,\n        \"maxTokens\": 1024\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}/versions",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}", "versions"]
+						},
+						"description": "Create a new version for an agent.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `systemInstruction`: Required, the system prompt\n- `config`: Required, configuration object (model, temperature, etc.)\n\n**Success (201):** Returns version object\n**Error (404):** Agent not found"
+					}
+				},
+				{
+					"name": "List Agent Versions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}/versions",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}", "versions"]
+						},
+						"description": "List all versions of an agent.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns array of versions\n**Error (404):** Agent not found"
+					}
+				},
+				{
+					"name": "Set Active Version",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"versionId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/agents/{{agentId}}/active-version",
+							"host": ["{{baseUrl}}"],
+							"path": ["workspaces", "{{workspaceId}}", "agents", "{{agentId}}", "active-version"]
+						},
+						"description": "Set which version is the active/production version for an agent.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `versionId`: Required, ID of the version to activate\n\n**Success (200):** Returns updated agent\n**Error (400):** Version not found or doesn't belong to agent\n**Error (404):** Agent not found"
+					}
+				}
+			],
+			"description": "Agent management endpoints. All require authentication and workspace membership."
+		},
+		{
+			"name": "📊 Evaluations",
+			"item": [
+				{
+					"name": "Definitions",
+					"item": [
+						{
+							"name": "Create Definition",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Response Quality Check\",\n    \"scope\": \"WORKSPACE\",\n    \"definition\": {\n        \"type\": \"llm_judge\",\n        \"criteria\": \"Evaluate the response for helpfulness, accuracy, and professionalism\",\n        \"rubric\": {\n            \"5\": \"Excellent - Response is helpful, accurate, and professional\",\n            \"3\": \"Average - Response is acceptable but could be improved\",\n            \"1\": \"Poor - Response is unhelpful or contains errors\"\n        }\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-definitions",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-definitions"]
+								},
+								"description": "Create a new evaluation definition.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `name`: Optional, max 255 characters\n- `scope`: Required, `WORKSPACE` or `AGENT`\n- `agentId`: Required if scope is `AGENT`\n- `definition`: Required, evaluation criteria object\n\n**Success (201):** Returns definition object\n**Error (400):** Validation error"
+							}
+						},
+						{
+							"name": "List Definitions",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-definitions",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-definitions"]
+								},
+								"description": "List all evaluation definitions in the workspace.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns array of definitions"
+							}
+						},
+						{
+							"name": "Get Definition",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-definitions/{{definitionId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-definitions", "{{definitionId}}"]
+								},
+								"description": "Get a single evaluation definition by ID.\n\n**Permission:** Any workspace member\n\n**Success (200):** Returns definition object\n**Error (404):** Definition not found"
+							}
+						},
+						{
+							"name": "Update Definition",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated Definition Name\",\n    \"definition\": {\n        \"type\": \"llm_judge\",\n        \"criteria\": \"Updated evaluation criteria\"\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-definitions/{{definitionId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-definitions", "{{definitionId}}"]
+								},
+								"description": "Update an evaluation definition.\n\n**Permission:** OWNER or ADMIN\n\n**Body:** (all optional)\n- `name`: max 255 characters\n- `scope`: `WORKSPACE` or `AGENT`\n- `agentId`: integer or null\n- `definition`: object\n\n**Success (200):** Returns updated definition\n**Error (404):** Definition not found"
+							}
+						},
+						{
+							"name": "Delete Definition",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-definitions/{{definitionId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-definitions", "{{definitionId}}"]
+								},
+								"description": "Delete an evaluation definition.\n\n**Permission:** OWNER only\n\n**Success (204):** No content\n**Error (404):** Definition not found"
+							}
+						}
+					],
+					"description": "Evaluation definition CRUD operations."
+				},
+				{
+					"name": "Runs",
+					"item": [
+						{
+							"name": "Create Evaluation Run",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Weekly Performance Evaluation\",\n    \"configSnapshot\": {\n        \"agentVersionIds\": [1, 2],\n        \"datasetId\": 1,\n        \"evaluationDefinitionIds\": [1, 2, 3]\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/workspaces/{{workspaceId}}/evaluation-runs",
+									"host": ["{{baseUrl}}"],
+									"path": ["workspaces", "{{workspaceId}}", "evaluation-runs"]
+								},
+								"description": "Create a new evaluation run to test agent versions.\n\n**Permission:** OWNER or ADMIN\n\n**Body:**\n- `name`: Optional, max 255 characters\n- `configSnapshot`: Required object containing:\n  - `agentVersionIds`: Required, array of version IDs (min 1)\n  - `datasetId`: Required, dataset to evaluate against\n  - `evaluationDefinitionIds`: Required, array of definition IDs (min 1)\n\n**Success (201):** Returns run object"
+							}
+						}
+					],
+					"description": "Evaluation run operations for testing agent performance."
+				}
+			],
+			"description": "Evaluation system endpoints for defining evaluation criteria and running evaluations on agents."
+		}
+	]
+}

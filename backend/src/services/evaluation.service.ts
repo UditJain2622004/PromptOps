@@ -39,6 +39,11 @@ export class EvaluationService {
     workspaceId: number,
     userId: number
   ): Promise<{ success: true; definition: EvaluationDefinition } | { success: false; error: string }> {
+    // If scope is AGENT, verify agentId is provided
+    if (input.scope === 'AGENT' && input.agentId === undefined) {
+      return { success: false, error: 'Agent ID is required for AGENT scope' }
+    }
+
     // If agentId is provided, verify it belongs to this workspace
     if (input.agentId !== undefined) {
       const agent = await this.prisma.agent.findFirst({
