@@ -3,10 +3,12 @@ import dbPlugin from './plugins/db.js'
 import jwtPlugin from './plugins/jwt.js'
 import authPlugin from './plugins/auth.js'
 import workspacePlugin from './plugins/workspace.js'
+import gatewayPlugin from './plugins/gateway.js'
 import { authRoutes } from './routes/auth.routes.js'
 import { workspacesRoutes } from './routes/workspaces.routes.js'
 import { agentsRoutes } from './routes/agents.routes.js'
 import { evaluationRoutes } from './routes/evaluation.routes.js'
+import { gatewayRoutes } from './routes/gateway.routes.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -18,8 +20,9 @@ export async function buildApp() {
     return { status: 'ok' }
   })
 
-  // Plugins (order matters: db first, then jwt, then auth)
+  // Plugins (order matters: db first, then gateway, then jwt, then auth)
   await app.register(dbPlugin)
+  await app.register(gatewayPlugin)  // Depends on db plugin
   await app.register(jwtPlugin)
   await app.register(authPlugin)
 
@@ -38,6 +41,7 @@ export async function buildApp() {
     // Domain routes
     await scopedApp.register(agentsRoutes, { prefix: '/agents' })
     await scopedApp.register(evaluationRoutes)
+    await scopedApp.register(gatewayRoutes, { prefix: '/gateway' })
     // Future routes:
     // await scopedApp.register(datasetsRoutes, { prefix: '/datasets' })
   }, { prefix: '/workspaces/:workspaceId' })

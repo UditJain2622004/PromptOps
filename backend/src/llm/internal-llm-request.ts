@@ -1,33 +1,4 @@
-export enum SenderRole {
-  User = 'user',
-  Assistant = 'assistant',
-  System = 'system',
-  Tool = 'tool',
-}
-
-
-enum ToolChoice {
-    Auto = 'auto',
-    None = 'none',
-    Name = 'name',
-}
-
-export type MultimodalContentPart = {
-  type: 'text' | 'image_url';
-  text?: string;
-  image_url?: {
-    url: string;
-    detail?: 'auto' | 'low' | 'high';
-  };
-};
-
-export type MessageContent = string | MultimodalContentPart[];
-
-export interface Message {
-    role: SenderRole;
-    content: MessageContent;
-    name?: string;
-}
+import { SenderRole, ToolChoice, MultimodalContentPart, MessageContent, Message } from './types.ts';
 
 
 /**

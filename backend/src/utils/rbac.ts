@@ -19,6 +19,8 @@ export type PermissionAction =
   | 'evaluation:definition:update'
   | 'evaluation:definition:delete'
   | 'evaluation:run:create'
+  // Gateway operations
+  | 'gateway:execute'
 
 // ─── Permission Matrix ──────────────────────────────────────────────────────
 
@@ -41,6 +43,9 @@ const PERMISSIONS: Record<PermissionAction, workspaceUserRole[]> = {
   'evaluation:definition:update': ['OWNER', 'ADMIN'],
   'evaluation:definition:delete': ['OWNER'],
   'evaluation:run:create': ['OWNER', 'ADMIN'],
+
+  // Gateway: All workspace members can execute
+  'gateway:execute': ['OWNER', 'ADMIN', 'USER'],
 }
 
 // ─── Permission Check ───────────────────────────────────────────────────────
