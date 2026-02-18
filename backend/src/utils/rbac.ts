@@ -19,6 +19,13 @@ export type PermissionAction =
   | 'evaluation:definition:update'
   | 'evaluation:definition:delete'
   | 'evaluation:run:create'
+  // Dataset operations
+  | 'dataset:create'
+  | 'dataset:update'
+  | 'dataset:delete'
+  | 'dataset:item:create'
+  | 'dataset:item:update'
+  | 'dataset:item:delete'
   // Gateway operations
   | 'gateway:execute'
 
@@ -43,6 +50,14 @@ const PERMISSIONS: Record<PermissionAction, workspaceUserRole[]> = {
   'evaluation:definition:update': ['OWNER', 'ADMIN'],
   'evaluation:definition:delete': ['OWNER'],
   'evaluation:run:create': ['OWNER', 'ADMIN'],
+
+  // Dataset: OWNER + ADMIN for most, OWNER only for delete
+  'dataset:create': ['OWNER', 'ADMIN'],
+  'dataset:update': ['OWNER', 'ADMIN'],
+  'dataset:delete': ['OWNER'],
+  'dataset:item:create': ['OWNER', 'ADMIN'],
+  'dataset:item:update': ['OWNER', 'ADMIN'],
+  'dataset:item:delete': ['OWNER'],
 
   // Gateway: All workspace members can execute
   'gateway:execute': ['OWNER', 'ADMIN', 'USER'],

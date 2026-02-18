@@ -164,7 +164,8 @@ model EvaluationDefinition{
   name String?
   scope EvaluationDefinitionScope @default(AGENT)
   definition Json
-  type EvaluationDefinitionType @default(TYPE1)
+  type String
+  parameters Json
   agentId Int?
   agent Agent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
@@ -201,10 +202,13 @@ model EvaluationRun{
   @@index([workspaceId])
 }
 
+
 model EvaluationResult{
   id Int @id @default(autoincrement())
   createdAt DateTime @default(now())
-  result Json
+  
+  passed Boolean
+  details Json?
 
   evaluationDefinitionId Int
   evaluationRunId Int

@@ -8,6 +8,7 @@ import { authRoutes } from './routes/auth.routes.js'
 import { workspacesRoutes } from './routes/workspaces.routes.js'
 import { agentsRoutes } from './routes/agents.routes.js'
 import { evaluationRoutes } from './routes/evaluation.routes.js'
+import { datasetRoutes } from './routes/dataset.routes.js'
 import { gatewayRoutes } from './routes/gateway.routes.js'
 
 export async function buildApp() {
@@ -41,9 +42,8 @@ export async function buildApp() {
     // Domain routes
     await scopedApp.register(agentsRoutes, { prefix: '/agents' })
     await scopedApp.register(evaluationRoutes)
+    await scopedApp.register(datasetRoutes, { prefix: '/datasets' })
     await scopedApp.register(gatewayRoutes, { prefix: '/gateway' })
-    // Future routes:
-    // await scopedApp.register(datasetsRoutes, { prefix: '/datasets' })
   }, { prefix: '/workspaces/:workspaceId' })
 
   return app

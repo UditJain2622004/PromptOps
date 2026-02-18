@@ -1,5 +1,5 @@
 import { OpenRouterAdapter } from '../src/llm/adapters/openrouter.adapter.ts'
-import { SenderRole } from '../src/llm/internal-llm-request.ts'
+import { SenderRole } from '../src/llm/types.ts'
 
 
 const adapter = new OpenRouterAdapter()

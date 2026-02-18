@@ -114,6 +114,8 @@ export class GatewayService {
       let response: InternalLLMResponse;
       try {
         response = await this.adapter.execute(internalLLMRequest);
+        // console.log("Output:", JSON.stringify(response, null, 2));
+
       } catch (adapterError) {
         // Wrap adapter errors with gateway context
         throw new GatewayError(
