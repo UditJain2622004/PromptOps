@@ -41,6 +41,15 @@ type ExecutionResult = SuccessfulExecution | FailedExecution;
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 export class OfflineEvaluationService {
+  private readonly executionTimeoutMs = Number.parseInt(
+    process.env.OFFLINE_EVAL_TIMEOUT_MS ?? "45000",
+    10
+  );
+  private readonly maxAttempts = Number.parseInt(
+    process.env.OFFLINE_EVAL_MAX_ATTEMPTS ?? "2",
+    10
+  );
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly gatewayService: GatewayService,
@@ -60,6 +69,13 @@ export class OfflineEvaluationService {
    * 5. Return summary (not raw results)
    */
   async run(input: OfflineEvaluationInput): Promise<EvaluationRunSummary> {
+    if (input.agentVersionIds.length === 0) {
+      throw new Error("agentVersionIds must not be empty");
+    }
+    if (input.evaluationDefinitionIds.length === 0) {
+      throw new Error("evaluationDefinitionIds must not be empty");
+    }
+
     // 1. Create EvaluationRun (intent snapshot - captures what we're evaluating)
     const evaluationRun = await this.prisma.evaluationRun.create({
       data: {
@@ -95,6 +111,14 @@ export class OfflineEvaluationService {
       if (evaluationDefinitions.length === 0) {
         throw new Error("No valid evaluation definitions found");
       }
+      const missingEvaluators = evaluationDefinitions
+        .filter((evalDef) => !evaluationRegistry[evalDef.type])
+        .map((evalDef) => evalDef.type);
+      if (missingEvaluators.length > 0) {
+        throw new Error(
+          `Missing evaluators for types: ${Array.from(new Set(missingEvaluators)).join(", ")}`
+        );
+      }
 
       // 3. Execute and evaluate
       let totalResults = 0;
@@ -109,25 +133,16 @@ export class OfflineEvaluationService {
             dataItem,
             input.workspaceId
           );
-          console.log(executionResult)
 
           if (!executionResult.success) {
             failedExecutions++;
-            // Log but continue - we don't want one failure to stop the entire run
-            console.error(
-              `[OfflineEval] Execution failed for agentVersion=${agentVersion.id}, dataItem=${dataItem.id}: ${executionResult.error}`
-            );
             continue;
           }
 
           // Run each evaluator on the output
           for (const evalDef of evaluationDefinitions) {
             const evaluator = evaluationRegistry[evalDef.type];
-            if (!evaluator) {
-              // Unknown evaluator type - skip (future-safe)
-              console.warn(`[OfflineEval] Unknown evaluator type: ${evalDef.type}`);
-              continue;
-            }
+            if (!evaluator) continue;
 
             const evalResult = evaluator.evaluate(
               { outputText: executionResult.outputText },
@@ -260,41 +275,47 @@ export class OfflineEvaluationService {
     dataItem: DataItem,
     workspaceId: number
   ): Promise<ExecutionResult> {
-    try {
-      // Extract user input from dataset item
-      const userInput = this.extractUserInput(dataItem);
+    let lastError: string | undefined;
+    const attempts = Number.isFinite(this.maxAttempts) && this.maxAttempts > 0 ? this.maxAttempts : 1;
 
-      // Build input message
-      const inputMessages: Message[] = [
-        { role: SenderRole.User, content: userInput },
-      ];
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        // Extract user input from dataset item
+        const userInput = this.extractUserInput(dataItem);
+        const inputMessages: Message[] = [{ role: SenderRole.User, content: userInput }];
 
-      // Execute via gateway (gateway handles system instruction injection)
-      const response = await this.gatewayService.executeAgent({
-        agentId: agentVersion.agent.id,
-        agentVersionId: agentVersion.id,
-        workspaceId,
-        inputMessages,
-        // Note: mode/environment are set inside gateway's promptOpsContext
-        // For true offline mode, we'd need to extend ExecuteAgentInput
-      });
+        const response = await this.executeWithTimeout(
+          this.gatewayService.executeAgent({
+            agentId: agentVersion.agent.id,
+            agentVersionId: agentVersion.id,
+            workspaceId,
+            inputMessages,
+            executionContext: {
+              mode: "offline",
+              environment: "eval",
+            },
+          }),
+          this.executionTimeoutMs
+        );
 
-      const outputText = response.choices[0]?.text ?? "";
-
-      return {
-        agentVersionId: agentVersion.id,
-        dataItemId: dataItem.id,
-        outputText,
-        success: true,
-      };
-    } catch (error) {
-      return {
-        agentVersionId: agentVersion.id,
-        dataItemId: dataItem.id,
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown execution error",
-      };
+        const outputText = response.choices[0]?.text ?? "";
+        return {
+          agentVersionId: agentVersion.id,
+          dataItemId: dataItem.id,
+          outputText,
+          success: true,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : "Unknown execution error";
+      }
     }
+
+    return {
+      agentVersionId: agentVersion.id,
+      dataItemId: dataItem.id,
+      success: false,
+      error: lastError ?? "Unknown execution error",
+    };
   }
 
   /**
@@ -313,5 +334,23 @@ export class OfflineEvaluationService {
 
     // Fallback: stringify the entire data object
     return JSON.stringify(data);
+  }
+
+  private async executeWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 45000;
+
+    let timeoutId: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error(`Execution timed out after ${timeout}ms`));
+          }, timeout);
+        }),
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
   }
 }

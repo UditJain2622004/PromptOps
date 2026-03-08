@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { WorkspaceService } from '../services/workspace.service.js'
+import { ProxyApiKeyService } from '../services/proxy-api-key.service.js'
 import { assertPermission } from '../utils/rbac.js'
 import { workspaceUserRole } from '../generated/prisma/client.ts'
 
@@ -21,6 +22,11 @@ interface InviteBody {
 interface UserParams {
   id: string
   userId: string
+}
+
+interface ApiKeyParams {
+  id: string
+  apiKeyId: string
 }
 
 interface ChangeRoleBody {
@@ -56,6 +62,7 @@ async function resolveWorkspaceMembership(
 
 export async function workspacesRoutes(fastify: FastifyInstance) {
   const workspaceService = new WorkspaceService(fastify.prisma)
+  const proxyApiKeyService = new ProxyApiKeyService(fastify.prisma)
 
   // All workspace routes require authentication
   fastify.addHook('onRequest', fastify.authenticate)
@@ -145,6 +152,93 @@ export async function workspacesRoutes(fastify: FastifyInstance) {
       const members = await workspaceService.listMembers(workspaceId)
 
       return reply.send({ members })
+    }
+  )
+
+  // POST /workspaces/:id/api-keys - Create PromptOps proxy API key (OWNER/ADMIN)
+  fastify.post<{ Params: WorkspaceParams }>(
+    '/:id/api-keys',
+    async (request: FastifyRequest<{ Params: WorkspaceParams }>, reply: FastifyReply) => {
+      const userId = request.user.userId
+      const workspaceId = parseInt(request.params.id, 10)
+
+      if (isNaN(workspaceId)) {
+        return reply.status(400).send({ error: 'Invalid workspace ID' })
+      }
+
+      const workspace = await resolveWorkspaceMembership(fastify, userId, workspaceId, reply)
+      if (!workspace) return
+
+      try {
+        assertPermission(workspace.role, 'workspace:api-key:manage')
+      } catch (err) {
+        return reply.status(403).send({ error: (err as Error).message })
+      }
+
+      const created = await proxyApiKeyService.create(workspaceId)
+
+      return reply.status(201).send({
+        apiKey: {
+          id: created.id,
+          key: created.apiKey,
+          createdAt: created.createdAt,
+        },
+      })
+    }
+  )
+
+  // GET /workspaces/:id/api-keys - List PromptOps proxy API keys (OWNER/ADMIN)
+  fastify.get<{ Params: WorkspaceParams }>(
+    '/:id/api-keys',
+    async (request: FastifyRequest<{ Params: WorkspaceParams }>, reply: FastifyReply) => {
+      const userId = request.user.userId
+      const workspaceId = parseInt(request.params.id, 10)
+
+      if (isNaN(workspaceId)) {
+        return reply.status(400).send({ error: 'Invalid workspace ID' })
+      }
+
+      const workspace = await resolveWorkspaceMembership(fastify, userId, workspaceId, reply)
+      if (!workspace) return
+
+      try {
+        assertPermission(workspace.role, 'workspace:api-key:manage')
+      } catch (err) {
+        return reply.status(403).send({ error: (err as Error).message })
+      }
+
+      const apiKeys = await proxyApiKeyService.list(workspaceId)
+      return reply.send({ apiKeys })
+    }
+  )
+
+  // DELETE /workspaces/:id/api-keys/:apiKeyId - Revoke PromptOps proxy API key (OWNER/ADMIN)
+  fastify.delete<{ Params: ApiKeyParams }>(
+    '/:id/api-keys/:apiKeyId',
+    async (request: FastifyRequest<{ Params: ApiKeyParams }>, reply: FastifyReply) => {
+      const userId = request.user.userId
+      const workspaceId = parseInt(request.params.id, 10)
+      const apiKeyId = parseInt(request.params.apiKeyId, 10)
+
+      if (isNaN(workspaceId) || isNaN(apiKeyId)) {
+        return reply.status(400).send({ error: 'Invalid workspace ID or api key ID' })
+      }
+
+      const workspace = await resolveWorkspaceMembership(fastify, userId, workspaceId, reply)
+      if (!workspace) return
+
+      try {
+        assertPermission(workspace.role, 'workspace:api-key:manage')
+      } catch (err) {
+        return reply.status(403).send({ error: (err as Error).message })
+      }
+
+      const revoked = await proxyApiKeyService.revoke(workspaceId, apiKeyId)
+      if (!revoked) {
+        return reply.status(404).send({ error: 'API key not found or already revoked' })
+      }
+
+      return reply.status(204).send()
     }
   )
 

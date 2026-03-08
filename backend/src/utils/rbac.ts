@@ -8,6 +8,7 @@ export type PermissionAction =
   | 'workspace:delete'
   | 'workspace:invite'
   | 'workspace:change-role'
+  | 'workspace:api-key:manage'
   // Agent operations
   | 'agent:create'
   | 'agent:update'
@@ -37,6 +38,7 @@ const PERMISSIONS: Record<PermissionAction, workspaceUserRole[]> = {
   'workspace:delete': ['OWNER'],
   'workspace:invite': ['OWNER', 'ADMIN'],
   'workspace:change-role': ['OWNER'],
+  'workspace:api-key:manage': ['OWNER', 'ADMIN'],
 
   // Agent: OWNER + ADMIN for most, OWNER only for delete
   'agent:create': ['OWNER', 'ADMIN'],

@@ -1,10 +1,11 @@
-import { Message, SenderRole } from "../types.ts";
-import { InternalLLMResponse } from "../internal-llm-response.ts";
-import { InternalLLMRequest } from "../internal-llm-request.ts";
+import { SenderRole } from "../types.ts";
+import { InternalLLMResponse, InternalProxyResponse } from "../internal-llm-response.ts";
+import { InternalLLMRequest, InternalLLMProxyRequest } from "../internal-llm-request.ts";
 import { ProviderAdapter } from "../adapters/provider-adapter.ts";
 import { AgentService } from "../../services/agent.service.ts";
 import {
   ExecuteAgentInput,
+  ExecuteProxyInput,
   AgentConfig,
   GatewayError,
   GatewayLogEntry,
@@ -38,6 +39,76 @@ export class GatewayService {
     logger?: GatewayLogger
   ) {
     this.logger = logger ?? defaultLogger;
+  }
+
+  async executeProxy(input: ExecuteProxyInput): Promise<InternalProxyResponse> {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+
+    const logEntry: Partial<GatewayLogEntry> = {
+      timestamp: startTime,
+      requestId,
+      workspaceId: input.promptOps.workspaceId,
+      agentId: input.promptOps.agentId,
+      agentVersionId: input.promptOps.agentVersionId,
+      model: "proxy-passthrough",
+      messageCount: 0,
+      hasSystemMessage: false,
+    };
+
+    const proxyRequest: InternalLLMProxyRequest = {
+      model: "proxy-passthrough",
+      messages: [],
+      promptOpsContext: {
+        requestId,
+        workspaceId: input.promptOps.workspaceId,
+        agentId: input.promptOps.agentId,
+        agentVersionId: input.promptOps.agentVersionId,
+        environment: input.promptOps.environment,
+        mode: "production",
+        timestamp: startTime,
+      },
+      proxyTransport: {
+        targetUrl: input.targetUrl,
+        method: input.method,
+        rawBody: input.rawBody,
+        forwardHeaders: input.forwardHeaders,
+      },
+    };
+
+    try {
+      const response = await this.adapter.proxyExecute(proxyRequest);
+      const durationMs = Date.now() - startTime;
+
+      this.logger.info({
+        ...logEntry,
+        durationMs,
+        success: true,
+      } as GatewayLogEntry);
+
+      return response;
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+
+      this.logger.error({
+        ...logEntry,
+        durationMs,
+        success: false,
+        errorCode: "PROVIDER_ERROR",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      } as GatewayLogEntry);
+
+      throw new GatewayError(
+        error instanceof Error ? error.message : "Proxy execution failed",
+        "PROVIDER_ERROR",
+        {
+          workspaceId: input.promptOps.workspaceId,
+          requestId,
+          provider: this.adapter.name,
+        },
+        error instanceof Error ? error : undefined
+      );
+    }
   }
 
   async executeAgent(input: ExecuteAgentInput): Promise<InternalLLMResponse> {
@@ -104,8 +175,8 @@ export class GatewayService {
           workspaceId: input.workspaceId,
           agentId: input.agentId,
           agentVersionId: agentVersion.id,
-          environment: "dev",
-          mode: "offline",
+          environment: input.executionContext?.environment ?? "dev",
+          mode: input.executionContext?.mode ?? "offline",
           timestamp: startTime,
         },
       };

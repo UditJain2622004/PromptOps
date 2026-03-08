@@ -1,4 +1,21 @@
-import { SenderRole, ToolChoice, MultimodalContentPart, MessageContent, Message } from './types.ts';
+import { ToolChoice, Message } from './types.ts';
+
+export interface PromptOpsContext {
+  requestId: string;
+  workspaceId: number;
+  agentId?: number;
+  agentVersionId?: number;
+  environment: 'dev' | 'eval' | 'prod';
+  mode: 'offline' | 'integrated' | 'production';
+  timestamp: number;
+}
+
+export interface ProxyTransportRequest {
+  targetUrl: string;
+  method: 'POST';
+  rawBody: string;
+  forwardHeaders: Record<string, string>;
+}
 
 
 /**
@@ -22,18 +39,10 @@ export interface InternalLLMRequest {
   numCompletions?: number;
 
   // --- PromptOps metadata (VERY IMPORTANT) ---
-  promptOpsContext: {
-    requestId: string;
+  promptOpsContext: PromptOpsContext;
 
-    workspaceId: number;
-    agentId: number;
-    agentVersionId: number;
-
-    environment: 'dev' | 'eval' | 'prod';
-    mode: 'offline' | 'integrated' | 'production';
-
-    timestamp: number;
-  };
+  // ---- Raw provider proxy transport (optional) ----
+  proxyTransport?: ProxyTransportRequest;
 
   // ---- Provider-specific passthrough (optional) ----
   providerConfig?: {
@@ -45,6 +54,10 @@ export interface InternalLLMRequest {
     safetySettings?: unknown;
     user?: string;
   };
+}
+
+export interface InternalLLMProxyRequest extends InternalLLMRequest {
+  proxyTransport: ProxyTransportRequest;
 }
 
 

@@ -89,6 +89,20 @@ model Workspace{
   evaluationDefinitions EvaluationDefinition[]
   evaluationRuns EvaluationRun[]
   datasets Dataset[]
+  promptOpsApiKeys PromptOpsApiKey[]
+  promptSamples PromptSample[]
+}
+
+model PromptOpsApiKey{
+  id Int @id @default(autoincrement())
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  hashedKey String
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  @@index([workspaceId])
+  @@index([workspaceId, revokedAt])
 }
 
 model WorkspaceUser{
@@ -262,4 +276,28 @@ model DataItem{
 
   @@index([datasetId])
 
+}
+
+model PromptSample{
+  id Int @id @default(autoincrement())
+  workspaceId Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agentId Int
+  agentVersionId Int?
+  environment String
+  providerHost String
+  targetUrl String
+  method String
+  statusCode Int
+  model String?
+  latencyMs Int
+  requestHeaders Json
+  requestBody Json
+  responseHeaders Json
+  responseBody Json
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([agentVersionId, createdAt])
 }

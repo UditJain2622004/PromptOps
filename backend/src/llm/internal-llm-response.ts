@@ -17,3 +17,9 @@ export interface InternalLLMResponse {
 
   raw?: unknown; // optional, provider-specific passthrough
 }
+
+export interface InternalProxyResponse {
+  statusCode: number;
+  headers: Record<string, string>;
+  rawBody: string;
+}

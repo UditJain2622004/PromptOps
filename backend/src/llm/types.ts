@@ -38,6 +38,23 @@ export interface ExecuteAgentInput {
   workspaceId: number;
   inputMessages: Message[];
   overrides?: AgentOverrides;
+  executionContext?: {
+    mode?: 'offline' | 'integrated' | 'production';
+    environment?: 'dev' | 'eval' | 'prod';
+  };
+}
+
+export interface ExecuteProxyInput {
+  targetUrl: string;
+  method: 'POST';
+  rawBody: string;
+  forwardHeaders: Record<string, string>;
+  promptOps: {
+    workspaceId: number;
+    agentId: number;
+    agentVersionId: number;
+    environment: 'dev' | 'eval' | 'prod';
+  };
 }
 
 export interface AgentOverrides {

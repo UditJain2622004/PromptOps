@@ -1,8 +1,8 @@
 import "dotenv/config";
 
 import { ProviderAdapter, AdapterConfig, filterUndefined } from "./provider-adapter.ts";
-import { InternalLLMRequest } from "../internal-llm-request.ts";
-import { InternalLLMResponse } from "../internal-llm-response.ts";
+import { InternalLLMRequest, InternalLLMProxyRequest } from "../internal-llm-request.ts";
+import { InternalLLMResponse, InternalProxyResponse } from "../internal-llm-response.ts";
 import { SenderRole } from "../types.ts";
 
 // ─── Gemini API Types ────────────────────────────────────────────────────────
@@ -95,9 +95,9 @@ export class GeminiAdapter implements ProviderAdapter {
       contents,
       ...(systemInstruction && { systemInstruction }),
       ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-      ...(request.providerConfig?.safetySettings && {
-        safetySettings: request.providerConfig.safetySettings,
-      }),
+      ...(request.providerConfig?.safetySettings
+        ? { safetySettings: request.providerConfig.safetySettings }
+        : {}),
     };
 
     const response = await fetch(url, {
@@ -137,6 +137,30 @@ export class GeminiAdapter implements ProviderAdapter {
         : undefined,
       raw: data,
     };
+  }
+
+  async proxyExecute(request: InternalLLMProxyRequest): Promise<InternalProxyResponse> {
+    const { targetUrl, method, rawBody, forwardHeaders } = request.proxyTransport;
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers: forwardHeaders,
+      body: rawBody,
+    });
+
+    return {
+      statusCode: response.status,
+      headers: this.headersToRecord(response.headers),
+      rawBody: await response.text(),
+    };
+  }
+
+  private headersToRecord(headers: Headers): Record<string, string> {
+    const record: Record<string, string> = {};
+    for (const [key, value] of headers.entries()) {
+      record[key] = value;
+    }
+    return record;
   }
 
   /**

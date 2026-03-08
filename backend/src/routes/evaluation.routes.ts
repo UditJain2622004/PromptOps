@@ -9,6 +9,8 @@ interface CreateDefinitionBody {
   name?: string
   scope: EvaluationDefinitionScope
   agentId?: number
+  type: string
+  parameters: object
   definition: object
 }
 
@@ -16,10 +18,16 @@ interface UpdateDefinitionBody {
   name?: string
   scope?: EvaluationDefinitionScope
   agentId?: number | null
+  type?: string
+  parameters?: object
   definition?: object
 }
 
 interface DefinitionParams {
+  id: string
+}
+
+interface RunParams {
   id: string
 }
 
@@ -30,6 +38,10 @@ interface CreateRunBody {
     datasetId: number
     evaluationDefinitionIds: number[]
   }
+}
+
+interface RunResultsQuery {
+  agentVersionId?: string
 }
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
@@ -46,11 +58,13 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
       schema: {
         body: {
           type: 'object',
-          required: ['scope', 'definition'],
+          required: ['scope', 'type', 'parameters', 'definition'],
           properties: {
             name: { type: 'string', maxLength: 255 },
             scope: { type: 'string', enum: ['WORKSPACE', 'AGENT'] },
             agentId: { type: 'integer' },
+            type: { type: 'string', minLength: 1, maxLength: 255 },
+            parameters: { type: 'object' },
             definition: { type: 'object' },
           },
         },
@@ -121,6 +135,8 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
             name: { type: 'string', maxLength: 255 },
             scope: { type: 'string', enum: ['WORKSPACE', 'AGENT'] },
             agentId: { type: ['integer', 'null'] },
+            type: { type: 'string', minLength: 1, maxLength: 255 },
+            parameters: { type: 'object' },
             definition: { type: 'object' },
           },
         },
@@ -235,6 +251,66 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
       const run = await evaluationService.createRun(request.body, workspaceId, userId)
 
       return reply.status(201).send({ run })
+    }
+  )
+
+  // GET /evaluation-runs - List evaluation runs (all roles)
+  fastify.get(
+    '/evaluation-runs',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const workspaceId = request.workspace.id
+      const runs = await evaluationService.listRuns(workspaceId)
+      return reply.send({ runs })
+    }
+  )
+
+  // GET /evaluation-runs/:id/summary - Get run summary (all roles)
+  fastify.get<{ Params: RunParams }>(
+    '/evaluation-runs/:id/summary',
+    async (request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply) => {
+      const workspaceId = request.workspace.id
+      const runId = parseInt(request.params.id, 10)
+      if (isNaN(runId)) {
+        return reply.status(400).send({ error: 'Invalid run ID' })
+      }
+
+      const summary = await evaluationService.getRunSummary(runId, workspaceId)
+      if (!summary) {
+        return reply.status(404).send({ error: 'Evaluation run not found' })
+      }
+
+      return reply.send(summary)
+    }
+  )
+
+  // GET /evaluation-runs/:id/results - Get run results (optional filter by agentVersionId)
+  fastify.get<{ Params: RunParams; Querystring: RunResultsQuery }>(
+    '/evaluation-runs/:id/results',
+    async (
+      request: FastifyRequest<{ Params: RunParams; Querystring: RunResultsQuery }>,
+      reply: FastifyReply
+    ) => {
+      const workspaceId = request.workspace.id
+      const runId = parseInt(request.params.id, 10)
+      if (isNaN(runId)) {
+        return reply.status(400).send({ error: 'Invalid run ID' })
+      }
+
+      let agentVersionId: number | undefined
+      if (typeof request.query.agentVersionId === 'string' && request.query.agentVersionId.trim()) {
+        const parsed = parseInt(request.query.agentVersionId, 10)
+        if (isNaN(parsed) || parsed <= 0) {
+          return reply.status(400).send({ error: 'Invalid agentVersionId' })
+        }
+        agentVersionId = parsed
+      }
+
+      const response = await evaluationService.listRunResults(runId, workspaceId, agentVersionId)
+      if (!response) {
+        return reply.status(404).send({ error: 'Evaluation run not found' })
+      }
+
+      return reply.send(response)
     }
   )
 }

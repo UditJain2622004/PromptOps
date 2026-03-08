@@ -1,8 +1,8 @@
 import "dotenv/config";
 
 import { ProviderAdapter, AdapterConfig, filterUndefined } from "./provider-adapter.ts";
-import { InternalLLMRequest } from "../internal-llm-request.ts";
-import { InternalLLMResponse } from "../internal-llm-response.ts";
+import { InternalLLMRequest, InternalLLMProxyRequest } from "../internal-llm-request.ts";
+import { InternalLLMResponse, InternalProxyResponse } from "../internal-llm-response.ts";
 
 // ─── OpenRouter API Types ────────────────────────────────────────────────────
 
@@ -139,5 +139,29 @@ export class OpenRouterAdapter implements ProviderAdapter {
     }
 
     return '';
+  }
+
+  async proxyExecute(request: InternalLLMProxyRequest): Promise<InternalProxyResponse> {
+    const { targetUrl, method, rawBody, forwardHeaders } = request.proxyTransport;
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers: forwardHeaders,
+      body: rawBody,
+    });
+
+    return {
+      statusCode: response.status,
+      headers: this.headersToRecord(response.headers),
+      rawBody: await response.text(),
+    };
+  }
+
+  private headersToRecord(headers: Headers): Record<string, string> {
+    const record: Record<string, string> = {};
+    for (const [key, value] of headers.entries()) {
+      record[key] = value;
+    }
+    return record;
   }
 }

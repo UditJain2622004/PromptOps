@@ -12,6 +12,8 @@ export interface CreateDefinitionInput {
   name?: string
   scope: EvaluationDefinitionScope
   agentId?: number
+  type: string
+  parameters: Prisma.InputJsonValue
   definition: Prisma.InputJsonValue
 }
 
@@ -19,6 +21,8 @@ export interface UpdateDefinitionInput {
   name?: string
   scope?: EvaluationDefinitionScope
   agentId?: number | null
+  type?: string
+  parameters?: Prisma.InputJsonValue
   definition?: Prisma.InputJsonValue
 }
 
@@ -60,6 +64,8 @@ export class EvaluationService {
         name: input.name,
         scope: input.scope,
         agentId: input.agentId,
+        type: input.type,
+        parameters: input.parameters,
         definition: input.definition,
         workspaceId,
         createdById: userId,
@@ -118,6 +124,8 @@ export class EvaluationService {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.scope !== undefined && { scope: input.scope }),
         ...(input.agentId !== undefined && { agentId: input.agentId }),
+        ...(input.type !== undefined && { type: input.type }),
+        ...(input.parameters !== undefined && { parameters: input.parameters }),
         ...(input.definition !== undefined && { definition: input.definition }),
         lastUpdatedById: userId,
       },
@@ -165,5 +173,101 @@ export class EvaluationService {
         createdById: userId,
       },
     })
+  }
+
+  async getRunSummary(
+    runId: number,
+    workspaceId: number
+  ): Promise<{
+    run: EvaluationRun
+    summary: {
+      totalResults: number
+      passed: number
+      failed: number
+      passRate: number
+    }
+  } | null> {
+    const run = await this.prisma.evaluationRun.findFirst({
+      where: { id: runId, workspaceId },
+    })
+    if (!run) return null
+
+    const [totalResults, passedResults] = await Promise.all([
+      this.prisma.evaluationResult.count({
+        where: { evaluationRunId: runId },
+      }),
+      this.prisma.evaluationResult.count({
+        where: { evaluationRunId: runId, passed: true },
+      }),
+    ])
+
+    const failedResults = totalResults - passedResults
+    const passRate = totalResults > 0 ? passedResults / totalResults : 0
+
+    return {
+      run,
+      summary: {
+        totalResults,
+        passed: passedResults,
+        failed: failedResults,
+        passRate,
+      },
+    }
+  }
+
+  async listRuns(workspaceId: number): Promise<EvaluationRun[]> {
+    return this.prisma.evaluationRun.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async listRunResults(
+    runId: number,
+    workspaceId: number,
+    agentVersionId?: number
+  ): Promise<{
+    run: EvaluationRun
+    results: {
+      id: number
+      agentVersionId: number
+      passed: boolean
+      details: Prisma.JsonValue | null
+      createdAt: Date
+      evaluationDefinition: {
+        id: number
+        name: string | null
+        type: string
+      }
+    }[]
+  } | null> {
+    const run = await this.prisma.evaluationRun.findFirst({
+      where: { id: runId, workspaceId },
+    })
+    if (!run) return null
+
+    const results = await this.prisma.evaluationResult.findMany({
+      where: {
+        evaluationRunId: runId,
+        ...(agentVersionId !== undefined ? { agentVersionId } : {}),
+      },
+      select: {
+        id: true,
+        agentVersionId: true,
+        passed: true,
+        details: true,
+        createdAt: true,
+        evaluationDefinition: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+      orderBy: [{ agentVersionId: 'asc' }, { evaluationDefinitionId: 'asc' }, { id: 'asc' }],
+    })
+
+    return { run, results }
   }
 }

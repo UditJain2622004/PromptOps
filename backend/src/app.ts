@@ -4,12 +4,15 @@ import jwtPlugin from './plugins/jwt.js'
 import authPlugin from './plugins/auth.js'
 import workspacePlugin from './plugins/workspace.js'
 import gatewayPlugin from './plugins/gateway.js'
+import proxyAuthPlugin from './plugins/proxy-auth.js'
+import promptOpsHeadersPlugin from './plugins/promptops-headers.js'
 import { authRoutes } from './routes/auth.routes.js'
 import { workspacesRoutes } from './routes/workspaces.routes.js'
 import { agentsRoutes } from './routes/agents.routes.js'
 import { evaluationRoutes } from './routes/evaluation.routes.js'
 import { datasetRoutes } from './routes/dataset.routes.js'
 import { gatewayRoutes } from './routes/gateway.routes.js'
+import { proxyRoutes } from './routes/proxy.routes.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -29,6 +32,13 @@ export async function buildApp() {
 
   // Public routes (no auth)
   await app.register(authRoutes, { prefix: '/auth' })
+
+  // BaseURL proxy routes (proxy API key + PromptOps metadata headers)
+  await app.register(async function proxyScopedRoutes(proxyApp) {
+    await proxyApp.register(proxyAuthPlugin)
+    await proxyApp.register(promptOpsHeadersPlugin)
+    await proxyApp.register(proxyRoutes)
+  }, { prefix: '/v1' })
 
   // Workspace routes (auth required, but no workspace resolution)
   await app.register(workspacesRoutes, { prefix: '/workspaces' })
