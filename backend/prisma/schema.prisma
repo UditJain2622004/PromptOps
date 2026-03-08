@@ -223,19 +223,22 @@ model EvaluationResult{
   
   passed Boolean
   details Json?
+  outputText String?
 
   evaluationDefinitionId Int
   evaluationRunId Int
   agentVersionId Int
+  dataItemId Int?
 
   evaluationDefinition EvaluationDefinition @relation(fields: [evaluationDefinitionId], references: [id], onDelete: Restrict)
   evaluationRun EvaluationRun @relation(fields: [evaluationRunId], references: [id], onDelete: Cascade)
-  agentVersion AgentVersion @relation(fields: [agentVersionId], references: [id],onDelete: Restrict)
+  agentVersion AgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  dataItem DataItem? @relation(fields: [dataItemId], references: [id], onDelete: SetNull)
 
   @@index([evaluationRunId])
   @@index([agentVersionId])
   @@index([evaluationDefinitionId])
-
+  @@index([dataItemId])
 }
 
 model Dataset{
@@ -274,8 +277,9 @@ model DataItem{
   datasetId Int
   dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
-  @@index([datasetId])
+  evaluationResults EvaluationResult[]
 
+  @@index([datasetId])
 }
 
 model PromptSample{

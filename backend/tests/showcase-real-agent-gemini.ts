@@ -20,21 +20,14 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing ${name}`);
-  }
-  return value;
-}
 
-const providerKey = requireEnv("GEMINI_API_KEY");
-const proxyBaseUrl = requireEnv("PROMPTOPS_PROXY_BASE_URL");
-const proxyApiKey = requireEnv("PROMPTOPS_PROXY_API_KEY");
-const agentId = requireEnv("PROMPTOPS_AGENT_ID");
-const agentVersionId = requireEnv("PROMPTOPS_AGENT_VERSION_ID");
-const environment = requireEnv("PROMPTOPS_ENVIRONMENT");
-const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const providerKey = "AIzaSyD0udBouLwAl0VBtpJwMgdwtW_TnWSSr34"
+const proxyBaseUrl = "http://127.0.0.1:3000"
+const proxyApiKey = "popk_1_-eqU3-3WeB97nXP1Z1x_cgJe6Lh8nJuXb_Bc-aDffeY"
+const agentId = "19"
+const agentVersionId = "30"
+const environment = "dev"
+const model = "gemini-2.5-flash";
 
 const prompt = "Give one concise line about why API gateways are useful.";
 

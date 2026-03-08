@@ -33,6 +33,22 @@ const evaluatorTypes = [
   'regex_match',
 ] as const
 
+const defaultParametersByType: Record<(typeof evaluatorTypes)[number], string> = {
+  contains_text: '{\n  "text": ""\n}',
+  not_contains_text: '{\n  "text": ""\n}',
+  min_length: '{\n  "min": 0\n}',
+  max_length: '{\n  "max": 100\n}',
+  regex_match: '{\n  "pattern": ""\n}',
+}
+
+const parameterHints: Record<(typeof evaluatorTypes)[number], string> = {
+  contains_text: 'Parameters: "text" (string) — output must contain this text',
+  not_contains_text: 'Parameters: "text" (string) — output must not contain this text',
+  min_length: 'Parameters: "min" (number) — minimum character count',
+  max_length: 'Parameters: "max" (number) — maximum character count',
+  regex_match: 'Parameters: "pattern" (string) — regex the output must match',
+}
+
 export function EvalDefinitionsPage() {
   const params = useParams()
   const workspaceId = Number.parseInt(params.workspaceId ?? '', 10)
@@ -62,10 +78,17 @@ export function EvalDefinitionsPage() {
     setScope('WORKSPACE')
     setAgentId('')
     setType('contains_text')
-    setParametersJson('{\n  "text": ""\n}')
+    setParametersJson(defaultParametersByType['contains_text'])
     setDefinitionJson('{\n  "kind": "text-rule"\n}')
     setActionError(null)
     setIsOpen(true)
+  }
+
+  function handleTypeChange(newType: (typeof evaluatorTypes)[number]) {
+    setType(newType)
+    if (!editing) {
+      setParametersJson(defaultParametersByType[newType])
+    }
   }
 
   function openEdit(definition: EvaluationDefinition) {
@@ -202,7 +225,10 @@ export function EvalDefinitionsPage() {
               </Select>
             </Field>
             <Field label="Type">
-              <Select value={type} onChange={(event) => setType(event.target.value as (typeof evaluatorTypes)[number])}>
+              <Select
+                value={type}
+                onChange={(event) => handleTypeChange(event.target.value as (typeof evaluatorTypes)[number])}
+              >
                 {evaluatorTypes.map((evaluatorType) => (
                   <option key={evaluatorType} value={evaluatorType}>
                     {evaluatorType}
@@ -222,7 +248,8 @@ export function EvalDefinitionsPage() {
             </Field>
           </div>
           <Field label="Parameters JSON">
-            <Textarea rows={8} value={parametersJson} onChange={(event) => setParametersJson(event.target.value)} />
+            <Textarea rows={6} value={parametersJson} onChange={(event) => setParametersJson(event.target.value)} />
+            <p className="mt-1 text-xs text-slate-500">{parameterHints[type]}</p>
           </Field>
           <Field label="Definition JSON">
             <Textarea rows={8} value={definitionJson} onChange={(event) => setDefinitionJson(event.target.value)} />

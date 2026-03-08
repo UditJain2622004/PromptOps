@@ -124,6 +124,8 @@ export interface EvaluationRun {
 export interface EvaluationResultItem {
   id: number
   agentVersionId: number
+  dataItemId: number | null
+  outputText: string | null
   passed: boolean
   details: Record<string, unknown> | null
   createdAt: string
@@ -131,7 +133,27 @@ export interface EvaluationResultItem {
     id: number
     name: string | null
     type: string
+    parameters: Record<string, unknown>
+    definition: Record<string, unknown>
   }
+  dataItem: {
+    id: number
+    data: Record<string, unknown>
+  } | null
+  agentVersion: {
+    id: number
+    systemInstruction: string
+    config: Record<string, unknown>
+    createdAt: string
+  }
+}
+
+export interface EvalVersionStats {
+  agentVersionId: number
+  total: number
+  passed: number
+  failed: number
+  passRate: number
 }
 
 export interface EvaluationRunSummaryResponse {
@@ -142,6 +164,7 @@ export interface EvaluationRunSummaryResponse {
     failed: number
     passRate: number
   }
+  perVersion: EvalVersionStats[]
 }
 
 export interface EvaluationRunResultsResponse {
@@ -158,4 +181,15 @@ export interface GatewayExecuteResponse {
     completionTokens?: number
     totalTokens?: number
   }
+}
+
+export interface PromptSampleSummary {
+  id: number
+  agentVersionId: number | null
+  environment: string
+  providerHost: string
+  model: string | null
+  statusCode: number
+  latencyMs: number
+  createdAt: string
 }

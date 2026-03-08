@@ -130,5 +130,44 @@ export class SampleCaptureService {
     }
     return null;
   }
+
+  /**
+   * List recent prompt samples for an agent within a workspace.
+   * Caller must ensure the agent belongs to the workspace.
+   */
+  async listSamplesForAgent(
+    agentId: number,
+    workspaceId: number,
+    limit = 20
+  ): Promise<
+    {
+      id: number;
+      agentVersionId: number | null;
+      environment: string;
+      providerHost: string;
+      model: string | null;
+      statusCode: number;
+      latencyMs: number;
+      createdAt: Date;
+    }[]
+  > {
+    const samples = await this.prisma.promptSample.findMany({
+      where: { agentId, workspaceId },
+      orderBy: { createdAt: "desc" },
+      take: Math.min(Math.max(1, limit), 100),
+      select: {
+        id: true,
+        agentVersionId: true,
+        environment: true,
+        providerHost: true,
+        model: true,
+        statusCode: true,
+        latencyMs: true,
+        createdAt: true,
+      },
+    });
+
+    return samples;
+  }
 }
 

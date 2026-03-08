@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { AgentService } from '../services/agent.service.js'
+import { SampleCaptureService } from '../services/sample-capture.service.js'
 import { assertPermission } from '../utils/rbac.js'
 
 // ─── Request Types ──────────────────────────────────────────────────────────
@@ -73,6 +74,37 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       const agents = await agentService.listAgents(workspaceId)
 
       return reply.send({ agents })
+    }
+  )
+
+  // GET /agents/:id/samples - List recent prompt samples (proxy traffic) for this agent
+  fastify.get<{ Params: AgentParams; Querystring: { limit?: string } }>(
+    '/:id/samples',
+    async (
+      request: FastifyRequest<{ Params: AgentParams; Querystring: { limit?: string } }>,
+      reply: FastifyReply
+    ) => {
+      const workspaceId = request.workspace.id
+      const agentId = parseInt(request.params.id, 10)
+
+      if (isNaN(agentId)) {
+        return reply.status(400).send({ error: 'Invalid agent ID' })
+      }
+
+      const agentService = new AgentService(fastify.prisma)
+      const agent = await agentService.getAgentById(agentId, workspaceId)
+
+      if (!agent) {
+        return reply.status(404).send({ error: 'Agent not found' })
+      }
+
+      const limitRaw = request.query.limit
+      const limit = limitRaw != null ? Math.min(Math.max(1, parseInt(limitRaw, 10) || 20), 100) : 20
+
+      const sampleCaptureService = new SampleCaptureService(fastify.prisma)
+      const samples = await sampleCaptureService.listSamplesForAgent(agentId, workspaceId, limit)
+
+      return reply.send({ samples })
     }
   )
 

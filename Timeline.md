@@ -157,117 +157,191 @@ Deliverables
 
 ---
 
-Weeks 11–12 — Async Processing & Redis Infrastructure
+Weeks 11–12 — Product Features: Proxy Evaluation & Conversation Support
 Goals
-• Scale evaluation execution safely
-• Learn Redis and async processing patterns
+• Make PromptOps useful during real agent development
+• Enable evaluations directly from proxy traffic
+• Support realistic agent conversations
 
 Work
-• Introduce Redis + job queue (BullMQ or equivalent)
-• Move evaluation execution to background workers
-• Async evaluation result aggregation
-• Sliding-window counters for evaluation metrics
-• Idempotent job handling for evaluation runs
 
-• Adapter reliability improvements:
-o Timeout handling
-o Retry logic for provider failures
+• Proxy-triggered evaluation runs:
+o Allow triggering evaluation through proxy calls
+o Add headers:
+
+x-promptops-eval-run-id
+
+x-promptops-eval-run=true
+o When present → attach request/response to evaluation run
+
+
+• Attach evaluators to agents (always-on evaluation):
+o Allow Agent → EvaluationDefinition relationship
+o Evaluators automatically run on proxy traffic
+o Store EvaluationResult records
+
+• Multi-message conversation support:
+o Store conversation history with request samples
+o Capture conversation_id from headers or request metadata
+o Allow evaluation of multi-turn agent responses
+
+• User-provided provider configuration for evaluation runs:
+o Allow passing provider API key and model config when triggering evaluation
+o Stop relying on server env variables for evaluation provider calls
+
+• Sample replay for evaluation:
+o Allow evaluation runs to reuse captured proxy samples as dataset items
+
+• Evaluation execution abstraction (async-ready design):
+o Introduce an EvaluationExecutor layer instead of calling evaluators directly
+o Current implementation runs evaluations synchronously
+o Future versions can switch executor to queue-based workers without refactoring evaluation services
 
 • Learn:
-o Redis data structures
-o Job queues and workers
-o Backpressure & retry strategies
+o Designing developer-facing APIs
+o Conversation-aware evaluation design
+o Evaluation orchestration patterns
 
 Deliverables
-• Async evaluation execution pipeline
-• Redis-backed job queue
-• Reliable evaluation run execution
+• Proxy-triggered evaluation run working
+• Evaluators attached to agents and running automatically
+• Multi-message conversation support in proxy and evaluation
+• Evaluation runs configurable with user provider credentials
 
-🧠 Learning focus: infra primitives, async systems
-🛑 UI polish can wait
+🧠 Learning focus: developer tooling, AI evaluation design
+🛑 Heavy infra scaling can wait
+
+Note
+• Evaluation execution should be implemented behind an abstraction (e.g., EvaluationExecutor).
+• In V1 it runs synchronously, but the abstraction allows later migration to Redis/BullMQ background workers without large refactors.
+
 
 ---
 
-Weeks 13–14 — Integrated Evaluation, Canary & Observability
+Weeks 13–14 — Product UX: Evaluation Management & Custom Evaluators
 Goals
-• Test real agent behavior under production-like traffic
-• Add safe rollout mechanics for AgentVersions
+• Make evaluation a first-class product feature
+• Allow developers to define their own evaluation logic
 
 Work
-• Integrated evaluation mode:
-o Tag proxy traffic for evaluation
-o Event capture from production requests
-o Replay captured requests for testing
 
-• Canary routing:
-o Percentage-based AgentVersion routing
-o Safe rollout for new system instructions
+• Custom evaluation creation from UI:
+o Create EvaluationDefinition via frontend
+o Support types:
 
-• Rollback rules:
-o Detect evaluation regression
-o Automatic rollback trigger
+ContainsString
 
-• Observability:
-o Request metrics
-o Evaluation metrics
-o Basic dashboards
+RegexMatch
+
+JSONSchema
+
+LLM-as-Judge
+
+
+• Evaluation management features:
+o Attach/detach evaluators from agents
+o Configure evaluation parameters from UI
+o Run evaluation runs from UI
+
+• Dataset management improvements:
+o Create datasets from proxy samples
+o Import/export dataset JSON
+o Attach datasets to agents
+
+• Evaluation reporting improvements:
+o Aggregated metrics per AgentVersion
+o Failure case listing
+o View input/output pair for failed tests
+
+• Prompt version comparison:
+o Compare evaluation performance between AgentVersions
+o Show pass-rate and failure differences
 
 • Learn:
-o Traffic splitting
-o Experiment design
-o Rollback strategies
+o Designing developer productivity tools
+o Evaluation visualization patterns
 
 Deliverables
-• Integrated evaluation demo using real traffic
-• Canary deploy + rollback demo
-• Metrics dashboard
+• Custom evaluator creation UI
+• Evaluation runs triggerable from UI
+• Dataset management + sample reuse
+• AgentVersion comparison reports
 
-🧠 Learning focus: system design, safety mechanisms
-🛑 No auto-prompt changes yet
+🧠 Learning focus: developer experience, evaluation workflows
+🛑 No automated prompt mutation yet
+
 
 ---
 
-Weeks 15 — Prompt Evolution & Stochastic Optimization
+Weeks 15 — Prompt Optimization & Evolution
 Goals
-• Implement your unique prompt optimization idea safely
+• Demonstrate automated prompt improvement ideas
+• Implement your stochastic optimization concept
 
 Work
-• Failure case surfacing UI
-• Generate prompt variants based on failures
-• Stochastic evaluation of variants
 
-o Sample 3–5 AgentVersion variants
-o Evaluate on same dataset
-o Rank and suggest best variant
+• Prompt variant generation:
+o Generate multiple AgentVersion variants
+o Use prompt perturbations or LLM suggestions
 
-• Human approval step before new version activation
+• Stochastic prompt optimization:
+o Evaluate variants on the same dataset
+o Rank variants by evaluation score
+
+• Failure-case-driven prompt suggestions:
+o Identify worst failing samples
+o Suggest prompt modifications
+
+• Human approval workflow:
+o Allow developer to approve best variant
+o Create new AgentVersion from chosen variant
 
 • Learn:
-o Black-box optimization
-o Bias & variance trade-offs
+o Prompt optimization strategies
+o Reliability vs automation trade-offs
 
 Deliverables
-• Prompt variant comparison report
 • Stochastic prompt optimization demo
+• Prompt variant comparison report
+• Human-approved prompt evolution flow
 
 🧠 Learning focus: advanced AI systems thinking
 
+
 ---
 
-Week 16 — Safety, Polish & Product Readiness
+Week 16 — Product Polish & Final Demo
 Goals
-• Make the system defensible, demo-ready, and product-credible
+• Make the system feel like a real developer tool
+• Deliver a strong demo narrative
 
 Work
-• Baseline safety evaluations
-• Audit logs & data export
-• CI/CD polish
-• End-to-end demo scenarios
-• Documentation & README
+
+• UI polish:
+o Agent dashboard
+o Evaluation run dashboard
+o Sample explorer
+
+• Developer experience improvements:
+o Clear integration documentation
+o Example agent repositories
+o Quick-start scripts
+
+• Demo scenario preparation:
+o Agent integration demo
+o Evaluation comparison demo
+o Prompt improvement demo
+
+• Documentation:
+o Final PRD
+o Architecture diagrams
+o Developer guide
 
 Deliverables
-• Final demo system
-• Product-grade PRD + architecture docs
+• Fully working PromptOps prototype
+• Polished demo with real agent integration
+• Product-grade documentation
 • Resume-ready, interview-ready project
 
-🧠 Learning focus: product polish, presentation, reliability
+🧠 Learning focus: product thinking, developer tooling
+

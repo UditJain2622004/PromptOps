@@ -1,6 +1,7 @@
 import {
   createAgentVersion,
   getAgent,
+  listAgentSamples,
   listAgentVersions,
   setActiveAgentVersion,
   updateAgent,
@@ -29,6 +30,10 @@ export function AgentDetailPage() {
   const { currentWorkspace } = useWorkspace()
   const agentQuery = useApi(() => getAgent(workspaceId, agentId), [workspaceId, agentId])
   const versionsQuery = useApi(() => listAgentVersions(workspaceId, agentId), [workspaceId, agentId])
+  const samplesQuery = useApi(
+    () => listAgentSamples(workspaceId, agentId, 20),
+    [workspaceId, agentId]
+  )
 
   const [draftName, setDraftName] = useState<string | null>(null)
   const [draftDescription, setDraftDescription] = useState<string | null>(null)
@@ -137,6 +142,79 @@ export function AgentDetailPage() {
             </PrimaryButton>
           </div>
         </form>
+      </PageSection>
+
+      <PageSection
+        title="Recent activity"
+        description="Proxy traffic captured for this agent. Use baseURL + PromptOps headers to route SDK calls through PromptOps."
+      >
+        {samplesQuery.loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+            Loading activity...
+          </div>
+        ) : samplesQuery.error ? (
+          <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+            {samplesQuery.error}
+          </div>
+        ) : (samplesQuery.data?.samples ?? []).length === 0 ? (
+          <EmptyState
+            title="No activity yet"
+            description="Traffic will appear here when you route SDK calls through the PromptOps proxy (baseURL + headers)."
+          />
+        ) : (
+          <DataTable
+            rows={samplesQuery.data!.samples}
+            getRowKey={(s) => s.id}
+            columns={[
+              {
+                key: 'time',
+                header: 'Time',
+                render: (s) => (
+                  <span className="text-slate-600">
+                    {new Date(s.createdAt).toLocaleString()}
+                  </span>
+                ),
+              },
+              {
+                key: 'environment',
+                header: 'Env',
+                render: (s) => (
+                  <StatusBadge value={s.environment.toUpperCase()} />
+                ),
+              },
+              {
+                key: 'provider',
+                header: 'Provider',
+                render: (s) => (
+                  <span className="font-mono text-xs">{s.providerHost}</span>
+                ),
+              },
+              {
+                key: 'model',
+                header: 'Model',
+                render: (s) => (
+                  <span className="text-slate-700">{s.model ?? '—'}</span>
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (s) => (
+                  <StatusBadge
+                    value={s.statusCode >= 200 && s.statusCode < 300 ? 'OK' : String(s.statusCode)}
+                  />
+                ),
+              },
+              {
+                key: 'latency',
+                header: 'Latency',
+                render: (s) => (
+                  <span className="text-slate-600">{s.latencyMs}ms</span>
+                ),
+              },
+            ]}
+          />
+        )}
       </PageSection>
 
       <PageSection title="Versions" description="Each version stores a system instruction and config snapshot.">

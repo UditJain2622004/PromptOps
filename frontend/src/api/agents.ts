@@ -1,5 +1,10 @@
 import { apiRequest } from '@/api/client'
-import type { Agent, AgentVersion, AgentWithActiveVersion } from '@/types/api'
+import type {
+  Agent,
+  AgentVersion,
+  AgentWithActiveVersion,
+  PromptSampleSummary,
+} from '@/types/api'
 
 export function listAgents(workspaceId: number) {
   return apiRequest<{ agents: Agent[] }>(`/workspaces/${workspaceId}/agents`)
@@ -56,4 +61,15 @@ export function setActiveAgentVersion(workspaceId: number, agentId: number, vers
     method: 'PATCH',
     body: { versionId },
   })
+}
+
+export function listAgentSamples(
+  workspaceId: number,
+  agentId: number,
+  limit?: number
+) {
+  const params = limit != null ? `?limit=${limit}` : ''
+  return apiRequest<{ samples: PromptSampleSummary[] }>(
+    `/workspaces/${workspaceId}/agents/${agentId}/samples${params}`
+  )
 }

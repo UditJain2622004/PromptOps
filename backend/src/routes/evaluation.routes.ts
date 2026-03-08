@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { EvaluationService } from '../services/evaluation.service.js'
+import { OfflineEvaluationService } from '../evaluations/OfflineEvaluationService.js'
 import { EvaluationDefinitionScope } from '../generated/prisma/client.ts'
 import { assertPermission } from '../utils/rbac.js'
 
@@ -249,6 +250,17 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
       const userId = request.user.userId
 
       const run = await evaluationService.createRun(request.body, workspaceId, userId)
+
+      // Execute evaluation in background
+      const offlineEvalService = new OfflineEvaluationService(
+        fastify.prisma,
+        fastify.gateway
+      )
+      void offlineEvalService
+        .runWithExistingRun(run.id, workspaceId)
+        .catch((err) => {
+          request.log.error({ err, runId: run.id }, 'Offline evaluation run failed')
+        })
 
       return reply.status(201).send({ run })
     }

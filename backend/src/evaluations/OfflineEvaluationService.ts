@@ -56,6 +56,58 @@ export class OfflineEvaluationService {
   ) {}
 
   /**
+   * Execute an existing evaluation run (created via API with status CREATED).
+   * Loads configSnapshot, updates to RUNNING, runs the eval, marks COMPLETED/FAILED.
+   */
+  async runWithExistingRun(
+    runId: number,
+    workspaceId: number
+  ): Promise<EvaluationRunSummary> {
+    const run = await this.prisma.evaluationRun.findFirst({
+      where: { id: runId, workspaceId },
+    });
+
+    if (!run) {
+      throw new Error(`Evaluation run ${runId} not found`);
+    }
+
+    if (run.status !== "CREATED") {
+      throw new Error(
+        `Evaluation run ${runId} cannot be executed: status is ${run.status}`
+      );
+    }
+
+    const config = run.configSnapshot as {
+      agentVersionIds: number[];
+      datasetId: number;
+      evaluationDefinitionIds: number[];
+    };
+
+    if (
+      !config?.agentVersionIds?.length ||
+      !config?.datasetId ||
+      !config?.evaluationDefinitionIds?.length
+    ) {
+      throw new Error("Invalid configSnapshot: missing required fields");
+    }
+
+    const input: OfflineEvaluationInput = {
+      workspaceId,
+      agentVersionIds: config.agentVersionIds,
+      datasetId: config.datasetId,
+      evaluationDefinitionIds: config.evaluationDefinitionIds,
+      triggeredByUserId: run.createdById,
+    };
+
+    await this.prisma.evaluationRun.update({
+      where: { id: runId },
+      data: { status: "RUNNING" },
+    });
+
+    return this.executeEvaluation(input, runId);
+  }
+
+  /**
    * Run an offline evaluation across agent versions, dataset items, and evaluation definitions.
    * 
    * Flow:
@@ -91,8 +143,13 @@ export class OfflineEvaluationService {
       },
     });
 
-    const runId = evaluationRun.id;
+    return this.executeEvaluation(input, evaluationRun.id);
+  }
 
+  private async executeEvaluation(
+    input: OfflineEvaluationInput,
+    runId: number
+  ): Promise<EvaluationRunSummary> {
     try {
       // 2. Load all required data
       const [agentVersions, dataItems, evaluationDefinitions] = await Promise.all([
@@ -155,6 +212,8 @@ export class OfflineEvaluationService {
                 evaluationRunId: runId,
                 evaluationDefinitionId: evalDef.id,
                 agentVersionId: agentVersion.id,
+                dataItemId: dataItem.id,
+                outputText: executionResult.outputText,
                 passed: evalResult.passed,
                 details: evalResult.details ? { message: evalResult.details } : Prisma.JsonNull,
               },

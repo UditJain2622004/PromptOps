@@ -19,10 +19,11 @@ import { useWorkspace } from '@/context/WorkspaceContext'
 import { useApi } from '@/hooks/useApi'
 import type { EvaluationRun } from '@/types/api'
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 export function EvalRunsPage() {
   const params = useParams()
+  const navigate = useNavigate()
   const workspaceId = Number.parseInt(params.workspaceId ?? '', 10)
   const { currentWorkspace } = useWorkspace()
   const runsQuery = useApi(() => listEvaluationRuns(workspaceId), [workspaceId])
@@ -48,7 +49,7 @@ export function EvalRunsPage() {
     setSubmitting(true)
     setActionError(null)
     try {
-      await createEvaluationRun(workspaceId, {
+      const { run } = await createEvaluationRun(workspaceId, {
         name: name || undefined,
         configSnapshot: {
           agentVersionIds: selectedVersionIds,
@@ -61,6 +62,7 @@ export function EvalRunsPage() {
       setDatasetId('')
       setSelectedDefinitionIds([])
       await runsQuery.refetch()
+      navigate(`/workspaces/${workspaceId}/evaluations/runs/${run.id}`)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to create evaluation run')
     } finally {

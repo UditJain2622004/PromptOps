@@ -29,6 +29,7 @@ const RESPONSE_HEADERS_TO_STRIP = new Set([
   "transfer-encoding",
   "upgrade",
   "content-length",
+  "content-encoding",
 ]);
 
 function extractRawQueryString(rawUrl?: string): string | undefined {

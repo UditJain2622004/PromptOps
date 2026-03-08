@@ -186,7 +186,7 @@ export function DatasetDetailPage() {
                 header: 'Data',
                 render: (item) => (
                   <pre className="max-w-xl overflow-x-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
-                    {stringifyJson(item.data)}
+                    {stringifyJson(item.data.input)}
                   </pre>
                 ),
               },

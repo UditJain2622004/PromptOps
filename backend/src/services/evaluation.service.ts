@@ -186,23 +186,56 @@ export class EvaluationService {
       failed: number
       passRate: number
     }
+    perVersion: {
+      agentVersionId: number
+      total: number
+      passed: number
+      failed: number
+      passRate: number
+    }[]
   } | null> {
     const run = await this.prisma.evaluationRun.findFirst({
       where: { id: runId, workspaceId },
     })
     if (!run) return null
 
-    const [totalResults, passedResults] = await Promise.all([
+    const [totalResults, passedResults, resultsByVersion] = await Promise.all([
       this.prisma.evaluationResult.count({
         where: { evaluationRunId: runId },
       }),
       this.prisma.evaluationResult.count({
         where: { evaluationRunId: runId, passed: true },
       }),
+      this.prisma.evaluationResult.groupBy({
+        by: ['agentVersionId'],
+        where: { evaluationRunId: runId },
+        _count: { id: true },
+      }),
     ])
 
     const failedResults = totalResults - passedResults
     const passRate = totalResults > 0 ? passedResults / totalResults : 0
+
+    const versionIds = resultsByVersion.map((g) => g.agentVersionId)
+    const passedByVersion = await this.prisma.evaluationResult.groupBy({
+      by: ['agentVersionId'],
+      where: { evaluationRunId: runId, passed: true },
+      _count: { id: true },
+    })
+    const passedMap = new Map(passedByVersion.map((g) => [g.agentVersionId, g._count.id]))
+    const totalMap = new Map(resultsByVersion.map((g) => [g.agentVersionId, g._count.id]))
+
+    const perVersion = versionIds.map((agentVersionId) => {
+      const total = totalMap.get(agentVersionId) ?? 0
+      const passed = passedMap.get(agentVersionId) ?? 0
+      return {
+        agentVersionId,
+        total,
+        passed,
+        failed: total - passed,
+        passRate: total > 0 ? passed / total : 0,
+      }
+    })
 
     return {
       run,
@@ -212,6 +245,7 @@ export class EvaluationService {
         failed: failedResults,
         passRate,
       },
+      perVersion,
     }
   }
 
@@ -228,9 +262,11 @@ export class EvaluationService {
     agentVersionId?: number
   ): Promise<{
     run: EvaluationRun
-    results: {
+      results: {
       id: number
       agentVersionId: number
+      dataItemId: number | null
+      outputText: string | null
       passed: boolean
       details: Prisma.JsonValue | null
       createdAt: Date
@@ -238,6 +274,18 @@ export class EvaluationService {
         id: number
         name: string | null
         type: string
+        parameters: Prisma.JsonValue
+        definition: Prisma.JsonValue
+      }
+      dataItem: {
+        id: number
+        data: Prisma.JsonValue
+      } | null
+      agentVersion: {
+        id: number
+        systemInstruction: string
+        config: Prisma.JsonValue
+        createdAt: Date
       }
     }[]
   } | null> {
@@ -254,6 +302,8 @@ export class EvaluationService {
       select: {
         id: true,
         agentVersionId: true,
+        dataItemId: true,
+        outputText: true,
         passed: true,
         details: true,
         createdAt: true,
@@ -262,6 +312,22 @@ export class EvaluationService {
             id: true,
             name: true,
             type: true,
+            parameters: true,
+            definition: true,
+          },
+        },
+        dataItem: {
+          select: {
+            id: true,
+            data: true,
+          },
+        },
+        agentVersion: {
+          select: {
+            id: true,
+            systemInstruction: true,
+            config: true,
+            createdAt: true,
           },
         },
       },
